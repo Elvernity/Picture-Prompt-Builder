@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Prompt Generator</title>
+    <style>
+        :root {
+            --bg-color: #f7f7f7;
+            --text-color: #1a1a1a;
+            --primary-color: #007bff;
+            --accent-color: #f0c34e;
+            --border-color: #e0e0e0;
+            --card-bg: #ffffff;
+            --input-bg: #f0f0f0;
+            --copy-bg: #e2f0ff;
+            --warn-color: #e6b800;
+            --error-color: #e04646;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+            --border-radius: 8px;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body.dark-theme {
+            --bg-color: #1a1a1a;
+            --text-color: #f7f7f7;
+            --primary-color: #4da6ff;
+            --accent-color: #ffde6c;
+            --border-color: #333333;
+            --card-bg: #2a2a2a;
+            --input-bg: #3c3c3c;
+            --copy-bg: #1c3d5e;
+            --warn-color: #ffda66;
+            --error-color: #ff6666;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .container {
+            display: flex;
+            flex-grow: 1;
+            padding: 16px;
+            gap: 16px;
+        }
+        .column {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            box-shadow: var(--box-shadow);
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .column.left { width: 45%; }
+        .column.right { width: 55%; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background-color: var(--card-bg);
+            box-shadow: var(--box-shadow);
+            z-index: 100;
+        }
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .topbar-actions button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-left: 8px;
+        }
+        .topbar-actions button:hover { background-color: #0056b3; }
+        .topbar-actions button#theme-toggle {
+            background: none;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .form-group {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            border-radius: 4px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            border-radius: 4px;
+        }
+        .chip {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+        }
+        .chip .remove {
+            font-weight: bold;
+            margin-left: 6px;
+            cursor: pointer;
+        }
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .suggestion-chip {
+            background-color: transparent;
+            border: 1px dashed var(--text-color);
+            color: var(--text-color);
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .suggestion-chip:hover {
+            opacity: 1;
+        }
+        .output-section {
+            background-color: var(--copy-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin-bottom: 16px;
+            position: relative;
+        }
+        .output-section h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .output-section pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            background: none;
+            padding: 0;
+            margin: 0;
+        }
+        .output-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .copy-btn, .fav-btn {
+            background: none;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .copy-btn:hover, .fav-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        #char-counter {
+            font-size: 0.85rem;
+            text-align: right;
+            margin-top: 4px;
+        }
+        .char-ok { color: green; }
+        .char-warn { color: var(--warn-color); }
+        .char-error { color: var(--error-color); }
+        footer {
+            padding: 16px;
+            background-color: var(--card-bg);
+            box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .footer-strip {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .thumbnail {
+            width: 64px;
+            height: 64px;
+            background-color: #eee;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .history-list, .favorites-list {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 8px 0;
+        }
+        .history-item, .favorite-item {
+            cursor: pointer;
+            padding: 8px 12px;
+            background-color: var(--input-bg);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .column.left, .column.right { width: 100%; }
+        }
+        .file-input { display: none; }
+        #message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .image-preview {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--border-radius);
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="title">Prompt Generator</div>
+    <div class="topbar-actions">
+        <button id="reset-btn">Reset</button>
+        <button id="export-btn">Export JSON</button>
+        <label for="import-file" class="topbar-actions-btn" tabindex="0">
+            <button id="import-btn">Import JSON</button>
+        </label>
+        <input type="file" id="import-file" class="file-input" accept=".json">
+        <button id="theme-toggle" aria-label="Toggle dark/light theme">
+            <span>&#9790;</span>
+        </button>
+    </div>
+</header>
+
+<main class="container">
+    <section class="column left">
+        <div class="section-title">Form Builder</div>
+        <div class="form-group">
+            <label for="subject-id">Subjek (Wajib)</label>
+            <input type="text" id="subject-id" placeholder="Contoh: Seekor kucing mengenakan baju besi">
+        </div>
+        <div class="form-group">
+            <label for="adjectives-id">Kata Sifat (Gunakan koma untuk memisahkan)</label>
+            <div class="chips-container" id="adjectives-chips-container"></div>
+            <input type="text" id="adjectives-id" placeholder="Contoh: lucu, berani, sinematik">
+        </div>
+        <div class="form-group">
+            <label for="medium-id">Media Seni</label>
+            <select id="medium-id">
+                <option value="">Pilih...</option>
+                <option value="digital painting">Digital Painting</option>
+                <option value="oil on canvas">Oil on Canvas</option>
+                <option value="watercolor">Watercolor</option>
+                <option value="ink">Ink</option>
+                <option value="vector">Vector</option>
+                <option value="voxel">Voxel</option>
+                <option value="clay render">Clay Render</option>
+                <option value="pixel art">Pixel Art</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="style-id">Gaya / Seniman / Aliran</label>
+            <select id="style-id">
+                <option value="">Pilih...</option>
+                <option value="Studio Ghibli">Studio Ghibli</option>
+                <option value="ukiyo-e">Ukiyo-e</option>
+                <option value="Art Nouveau">Art Nouveau</option>
+                <option value="Bauhaus">Bauhaus</option>
+                <option value="synthwave">Synthwave</option>
+                <option value="cyberpunk">Cyberpunk</option>
+                <option value="solarpunk">Solarpunk</option>
+                <option value="brutalism">Brutalism</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="lighting-id">Pencahayaan</label>
+            <select id="lighting-id">
+                <option value="">Pilih...</option>
+                <option value="softbox">Softbox</option>
+                <option value="rim light">Rim Light</option>
+                <option value="volumetric">Volumetric</option>
+                <option value="golden hour">Golden Hour</option>
+                <option value="overcast">Overcast</option>
+                <option value="chiaroscuro">Chiaroscuro</option>
+                <option value="neon">Neon</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="palette-id">Palet Warna (Pilih atau Tulis)</label>
+            <select id="palette-id">
+                <option value="">Pilih...</option>
+                <option value="teal-orange">Teal-Orange</option>
+                <option value="pastel">Pastel</option>
+                <option value="monochrome">Monochrome</option>
+                <option value="duotone">Duotone</option>
+                <option value="saturated">Saturated</option>
+                <option value="muted earth tones">Muted Earth Tones</option>
+            </select>
+            <input type="text" id="palette-free-id" placeholder="Tulis palet warna lain">
+        </div>
+        <div class="form-group">
+            <label for="composition-id">Komposisi</label>
+            <select id="composition-id">
+                <option value="">Pilih...</option>
+                <option value="rule of thirds">Rule of Thirds</option>
+                <option value="centered portrait">Centered Portrait</option>
+                <option value="symmetrical">Symmetrical</option>
+                <option value="isometric">Isometric</option>
+                <option value="bird’s-eye">Bird’s-eye</option>
+                <option value="low-angle">Low-angle</option>
+                <option value="macro">Macro</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="camera-id">Kamera / Lensa</label>
+            <select id="camera-id">
+                <option value="">Pilih...</option>
+                <option value="24mm wide">24mm Wide</option>
+                <option value="85mm portrait">85mm Portrait</option>
+                <option value="100mm macro">100mm Macro</option>
+                <option value="tilt-shift">Tilt-shift</option>
+                <option value="f/1.8 bokeh">f/1.8 Bokeh</option>
+                <option value="long exposure">Long Exposure</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="environment-id">Lingkungan / Latar Belakang</label>
+            <input type="text" id="environment-id" placeholder="Contoh: di hutan, di kota masa depan">
+        </div>
+        <div class="form-group">
+            <label for="mood-id">Suasana / Mood (Pilih lebih dari satu)</label>
+            <div id="mood-options" class="chips-container">
+                <div class="chip" data-value="calm">Calm</div>
+                <div class="chip" data-value="epic">Epic</div>
+                <div class="chip" data-value="surreal">Surreal</div>
+                <div class="chip" data-value="whimsical">Whimsical</div>
+                <div class="chip" data-value="dramatic">Dramatic</div>
+                <div class="chip" data-value="futuristic">Futuristic</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="detail-id">Detail / Kualitas</label>
+            <select id="detail-id">
+                <option value="">Pilih...</option>
+                <option value="ultra-detailed">Ultra-detailed</option>
+                <option value="masterpiece">Masterpiece</option>
+                <option value="sharp focus">Sharp Focus</option>
+                <option value="photorealistic">Photorealistic</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="negative-id">Negative Prompt</label>
+            <textarea id="negative-id" rows="4">blurry, low quality, watermark, text, extra limbs, deformed, jpeg artifacts</textarea>
+        </div>
+    </section>
+
+    <section class="column right">
+        <div class="section-title">Picture to Prompt</div>
+        <div class="form-group">
+            <label for="image-upload">Unggah Gambar</label>
+            <input type="file" id="image-upload" accept="image/*">
+            <button id="generate-image-prompt-btn" style="margin-top: 8px;">Buat Prompt dari Gambar</button>
+        </div>
+        <div id="image-prompt-status"></div>
+        
+        <hr style="margin: 24px 0; border: 1px solid var(--border-color);">
+
+        <div class="section-title">Preview & Output</div>
+        <div class="output-section">
+            <h4>MidJourney Prompt</h4>
+            <div class="output-actions">
+                <button class="copy-btn" data-target="mj-output">Copy</button>
+            </div>
+            <pre id="mj-output" class="output-text"></pre>
+        </div>
+        <div class="form-group">
+            <label>MidJourney Parameters</label>
+            <div style="display: flex; gap: 16px;">
+                <label for="mj-ar-id">Aspect Ratio</label>
+                <select id="mj-ar-id">
+                    <option value="1:1" selected>1:1</option>
+                    <option value="3:4">3:4</option>
+                    <option value="4:3">4:3</option>
+                    <option value="16:9">16:9</option>
+                    <option value="9:16">9:16</option>
+                </select>
+                <label for="mj-stylize-id">Stylize (100-1000)</label>
+                <input type="number" id="mj-stylize-id" min="100" max="1000" value="500">
+                <label for="mj-chaos-id">Chaos (0-30)</label>
+                <input type="number" id="mj-chaos-id" min="0" max="30" value="0">
+                <label><input type="checkbox" id="mj-style-raw-id"> Style raw</label>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <h4>Stable Diffusion Positive Prompt</h4>
+            <div class="output-actions">
+                <button class="copy-btn" data-target="sd-positive-output">Copy</button>
+            </div>
+            <pre id="sd-positive-output" class="output-text"></pre>
+        </div>
+        <div class="output-section">
+            <h4>Stable Diffusion Negative Prompt</h4>
+            <div class="output-actions">
+                <button class="copy-btn" data-target="sd-negative-output">Copy</button>
+            </div>
+            <pre id="sd-negative-output" class="output-text"></pre>
+        </div>
+        <div class="output-section">
+            <h4>Stable Diffusion Parameters</h4>
+            <div class="output-actions">
+                <button class="copy-btn" data-target="sd-params-output">Copy</button>
+            </div>
+            <pre id="sd-params-output" class="output-text"></pre>
+        </div>
+
+        <div class="output-section">
+            <h4>Generic Prompt</h4>
+            <div class="output-actions">
+                <button class="copy-btn" data-target="generic-output">Copy</button>
+            </div>
+            <pre id="generic-output" class="output-text"></pre>
+        </div>
+        <div class="form-group">
+            <label for="prompt-id">Prompt Lengkap (Indonesia)</label>
+            <textarea id="prompt-id" rows="8"></textarea>
+            <div id="char-counter">0/1800</div>
+        </div>
+        <div class="form-group">
+            <label for="prompt-en-id">Prompt Lengkap (English)</label>
+            <textarea id="prompt-en-id" rows="8" readonly></textarea>
+        </div>
+        <button id="add-to-favs-btn" style="margin-top: 16px;">Tambah ke Favorit</button>
+        <button id="refine-prompt-btn" style="margin-top: 8px;">✨ Tingkatkan Prompt ✨</button>
+        <button id="generate-image-btn" style="margin-top: 8px;">✨ Hasilkan Gambar ✨</button>
+        <div id="image-generation-status" style="margin-top: 8px;"></div>
+        <img id="generated-image-preview" class="image-preview" style="display:none;" />
+    </section>
+</main>
+
+<footer>
+    <div class="footer-strip">
+        <div class="history-list"></div>
+        <div class="favorites-list"></div>
+    </div>
+</footer>
+
+<div id="message-box"></div>
+
+<script>
+    const STORAGE_KEY = 'image-generator-state';
+    const MAX_HISTORY = 10;
+    const MAX_CHAR = 1800;
+
+    const DOM = {
+        subjectInput: document.getElementById('subject-id'),
+        adjectivesInput: document.getElementById('adjectives-id'),
+        adjectivesChipsContainer: document.getElementById('adjectives-chips-container'),
+        mediumSelect: document.getElementById('medium-id'),
+        styleSelect: document.getElementById('style-id'),
+        lightingSelect: document.getElementById('lighting-id'),
+        paletteSelect: document.getElementById('palette-id'),
+        paletteFreeInput: document.getElementById('palette-free-id'),
+        compositionSelect: document.getElementById('composition-id'),
+        cameraSelect: document.getElementById('camera-id'),
+        environmentInput: document.getElementById('environment-id'),
+        moodOptions: document.getElementById('mood-options'),
+        detailSelect: document.getElementById('detail-id'),
+        negativeTextarea: document.getElementById('negative-id'),
+        
+        mjOutput: document.getElementById('mj-output'),
+        sdPositiveOutput: document.getElementById('sd-positive-output'),
+        sdNegativeOutput: document.getElementById('sd-negative-output'),
+        sdParamsOutput: document.getElementById('sd-params-output'),
+        genericOutput: document.getElementById('generic-output'),
+        
+        mjArSelect: document.getElementById('mj-ar-id'),
+        mjStylizeInput: document.getElementById('mj-stylize-id'),
+        mjChaosInput: document.getElementById('mj-chaos-id'),
+        mjStyleRawCheckbox: document.getElementById('mj-style-raw-id'),
+        
+        promptTextarea: document.getElementById('prompt-id'),
+        promptEnTextarea: document.getElementById('prompt-en-id'),
+        charCounter: document.getElementById('char-counter'),
+        
+        resetBtn: document.getElementById('reset-btn'),
+        exportBtn: document.getElementById('export-btn'),
+        importFile: document.getElementById('import-file'),
+        themeToggle: document.getElementById('theme-toggle'),
+        copyButtons: document.querySelectorAll('.copy-btn'),
+        addToFavsBtn: document.getElementById('add-to-favs-btn'),
+
+        imageUpload: document.getElementById('image-upload'),
+        generateImagePromptBtn: document.getElementById('generate-image-prompt-btn'),
+        imagePromptStatus: document.getElementById('image-prompt-status'),
+
+        refinePromptBtn: document.getElementById('refine-prompt-btn'),
+        generateImageBtn: document.getElementById('generate-image-btn'),
+        imageGenerationStatus: document.getElementById('image-generation-status'),
+        generatedImagePreview: document.getElementById('generated-image-preview'),
+
+        historyList: document.querySelector('.history-list'),
+        favoritesList: document.querySelector('.favorites-list'),
+    };
+    
+    let state = {
+        subject: '',
+        adjectives: [],
+        medium: '',
+        style: '',
+        lighting: '',
+        palette: '',
+        paletteFree: '',
+        composition: '',
+        camera: '',
+        environment: '',
+        mood: [],
+        detail: '',
+        negative: 'blurry, low quality, watermark, text, extra limbs, deformed, jpeg artifacts',
+        mj: {
+            ar: '1:1',
+            stylize: 500,
+            chaos: 0,
+            styleRaw: false,
+        },
+        theme: 'light',
+        history: [],
+        favorites: [],
+    };
+    
+    const DICTIONARY = {
+        'digital painting': 'digital painting',
+        'oil on canvas': 'oil on canvas',
+        'watercolor': 'watercolor',
+        'ink': 'ink',
+        'vector': 'vector',
+        'voxel': 'voxel',
+        'clay render': 'clay render',
+        'pixel art': 'pixel art',
+        'studio ghibli': 'Studio Ghibli',
+        'ukiyo-e': 'ukiyo-e',
+        'art nouveau': 'Art Nouveau',
+        'bauhaus': 'Bauhaus',
+        'synthwave': 'synthwave',
+        'cyberpunk': 'cyberpunk',
+        'solarpunk': 'solarpunk',
+        'brutalism': 'brutalism',
+        'softbox': 'softbox',
+        'rim light': 'rim light',
+        'volumetric': 'volumetric',
+        'golden hour': 'golden hour',
+        'overcast': 'overcast',
+        'chiaroscuro': 'chiaroscuro',
+        'neon': 'neon',
+        'teal-orange': 'teal-orange',
+        'pastel': 'pastel',
+        'monochrome': 'monochrome',
+        'duotone': 'duotone',
+        'saturated': 'saturated',
+        'muted earth tones': 'muted earth tones',
+        'rule of thirds': 'rule of thirds',
+        'centered portrait': 'centered portrait',
+        'symmetrical': 'symmetrical',
+        'isometric': 'isometric',
+        'bird’s-eye': 'bird’s-eye',
+        'low-angle': 'low-angle',
+        'macro': 'macro',
+        '24mm wide': '24mm wide',
+        '85mm portrait': '85mm portrait',
+        '100mm macro': '100mm macro',
+        'tilt-shift': 'tilt-shift',
+        'f/1.8 bokeh': 'f/1.8 bokeh',
+        'long exposure': 'long exposure',
+        'calm': 'calm',
+        'epic': 'epic',
+        'surreal': 'surreal',
+        'whimsical': 'whimsical',
+        'dramatic': 'dramatic',
+        'futuristic': 'futuristic',
+        'ultra-detailed': 'ultra-detailed',
+        'masterpiece': 'masterpiece',
+        'sharp focus': 'sharp focus',
+        'photorealistic': 'photorealistic',
+    };
+    
+    function translateToEnglish(term) {
+        const lowerCaseTerm = term.toLowerCase().trim();
+        return DICTIONARY[lowerCaseTerm] || term;
+    }
+
+    function showMessage(msg) {
+        const msgBox = document.getElementById('message-box');
+        msgBox.textContent = msg;
+        msgBox.style.display = 'block';
+        msgBox.style.opacity = '1';
+        setTimeout(() => {
+            msgBox.style.opacity = '0';
+        }, 2000);
+        setTimeout(() => {
+            msgBox.style.display = 'none';
+        }, 2500);
+    }
+
+    function renderUI() {
+        DOM.subjectInput.value = state.subject;
+        DOM.mediumSelect.value = state.medium;
+        DOM.styleSelect.value = state.style;
+        DOM.lightingSelect.value = state.lighting;
+        DOM.paletteSelect.value = state.palette;
+        DOM.paletteFreeInput.value = state.paletteFree;
+        DOM.compositionSelect.value = state.composition;
+        DOM.cameraSelect.value = state.camera;
+        DOM.environmentInput.value = state.environment;
+        DOM.detailSelect.value = state.detail;
+        DOM.negativeTextarea.value = state.negative;
+        
+        DOM.mjArSelect.value = state.mj.ar;
+        DOM.mjStylizeInput.value = state.mj.stylize;
+        DOM.mjChaosInput.value = state.mj.chaos;
+        DOM.mjStyleRawCheckbox.checked = state.mj.styleRaw;
+
+        // Render chips for adjectives
+        DOM.adjectivesChipsContainer.innerHTML = '';
+        state.adjectives.forEach(adjective => {
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            chip.textContent = adjective;
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => {
+                state.adjectives = state.adjectives.filter(a => a !== adjective);
+                renderUI();
+                updatePrompt();
+            };
+            chip.appendChild(removeBtn);
+            DOM.adjectivesChipsContainer.appendChild(chip);
+        });
+
+        // Render multi-select chips for mood
+        document.querySelectorAll('#mood-options .chip').forEach(chip => {
+            const isSelected = state.mood.includes(chip.dataset.value);
+            chip.style.backgroundColor = isSelected ? 'var(--primary-color)' : 'var(--input-bg)';
+            chip.style.color = isSelected ? 'white' : 'var(--text-color)';
+        });
+
+        renderHistory();
+        renderFavorites();
+    }
+
+    function generatePrompts(promptOverride = null) {
+        let currentPrompt = promptOverride;
+        
+        if (!promptOverride) {
+            const parts = {
+                subject: state.subject.trim(),
+                adjectives: state.adjectives.filter(a => a.trim()).join(', '),
+                medium: state.medium.trim(),
+                style: state.style.trim(),
+                lighting: state.lighting.trim(),
+                palette: state.paletteFree.trim() || state.palette.trim(),
+                composition: state.composition.trim(),
+                camera: state.camera.trim(),
+                environment: state.environment.trim(),
+                mood: state.mood.filter(m => m.trim()).join(', '),
+                detail: state.detail.trim(),
+            };
+            currentPrompt = [
+                parts.subject,
+                parts.adjectives,
+                parts.medium,
+                parts.style ? `in the style of ${parts.style}` : '',
+                parts.lighting,
+                parts.palette,
+                parts.composition,
+                parts.camera,
+                parts.environment,
+                parts.mood,
+                parts.detail,
+            ].filter(p => p).join(', ');
+        }
+
+        DOM.promptTextarea.value = currentPrompt;
+
+        const mjParams = [
+            `--ar ${state.mj.ar}`,
+            `--v 6`,
+            state.mj.styleRaw ? `--style raw` : '',
+            `--s ${state.mj.stylize}`,
+            `--chaos ${state.mj.chaos}`,
+        ].filter(p => p).join(' ');
+
+        DOM.mjOutput.textContent = `${currentPrompt} ${mjParams}`;
+        DOM.sdPositiveOutput.textContent = currentPrompt;
+        DOM.sdNegativeOutput.textContent = state.negative;
+        DOM.sdParamsOutput.textContent = `Steps: 30, Sampler: DPM++ 2M Karras, CFG scale: 6-7, Size: 512x512, Hires fix: No`;
+        DOM.genericOutput.textContent = currentPrompt;
+        
+        updateCharCounter();
+        saveState();
+        saveHistory();
+    }
+    
+    // Asynchronous function to translate text using Gemini API
+    async function translatePromptToEnglish(text) {
+        if (!text) return "";
+        const payload = {
+            contents: [{
+                parts: [{ text: `Terjemahkan prompt gambar berikut ke Bahasa Inggris, pertahankan formatnya: "${text}"` }]
+            }],
+            systemInstruction: {
+                parts: [{ text: "Anda adalah penerjemah ahli untuk prompt AI. Jawab hanya dengan prompt yang sudah diterjemahkan, tanpa teks tambahan." }]
+            }
+        };
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            return result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } catch (error) {
+            console.error('API Error:', error);
+            return text; // Fallback to original text on error
+        }
+    }
+
+    function updateCharCounter() {
+        const count = DOM.promptTextarea.value.length;
+        DOM.charCounter.textContent = `${count}/${MAX_CHAR}`;
+        DOM.charCounter.className = 'char-counter ' + (count > MAX_CHAR ? 'char-error' : (count > MAX_CHAR * 0.9 ? 'char-warn' : 'char-ok'));
+    }
+
+    function updatePrompt() {
+        state.subject = DOM.subjectInput.value;
+        state.adjectives = [...DOM.adjectivesChipsContainer.children].map(chip => chip.textContent.slice(0, -1).trim());
+        state.medium = DOM.mediumSelect.value;
+        state.style = DOM.styleSelect.value;
+        state.lighting = DOM.lightingSelect.value;
+        state.palette = DOM.paletteSelect.value;
+        state.paletteFree = DOM.paletteFreeInput.value;
+        state.composition = DOM.compositionSelect.value;
+        state.camera = DOM.cameraSelect.value;
+        state.environment = DOM.environmentInput.value;
+        state.detail = DOM.detailSelect.value;
+        state.negative = DOM.negativeTextarea.value;
+        
+        state.mj.ar = DOM.mjArSelect.value;
+        state.mj.stylize = DOM.mjStylizeInput.value;
+        state.mj.chaos = DOM.mjChaosInput.value;
+        state.mj.styleRaw = DOM.mjStyleRawCheckbox.checked;
+
+        generatePrompts();
+    }
+
+    function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+        const savedState = localStorage.getItem(STORAGE_KEY);
+        if (savedState) {
+            Object.assign(state, JSON.parse(savedState));
+        }
+        renderUI();
+        generatePrompts(); // Initial generation on load
+    }
+    
+    function saveHistory() {
+        const currentPrompt = DOM.promptTextarea.value;
+        if (currentPrompt && !state.history.includes(currentPrompt)) {
+            state.history.unshift(currentPrompt);
+            if (state.history.length > MAX_HISTORY) {
+                state.history.pop();
+            }
+            saveState();
+            renderHistory();
+        }
+    }
+
+    function renderHistory() {
+        DOM.historyList.innerHTML = '';
+        state.history.forEach((prompt, index) => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.textContent = prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '');
+            item.onclick = () => {
+                DOM.promptTextarea.value = prompt;
+                updatePrompt();
+                showMessage('Prompt dimuat dari riwayat.');
+            };
+            DOM.historyList.appendChild(item);
+        });
+    }
+
+    function addToFavorites() {
+        const currentPrompt = DOM.promptTextarea.value;
+        if (currentPrompt && !state.favorites.includes(currentPrompt)) {
+            state.favorites.push(currentPrompt);
+            saveState();
+            renderFavorites();
+            showMessage('Prompt berhasil ditambahkan ke favorit.');
+        } else {
+            showMessage('Prompt sudah ada di favorit.');
+        }
+    }
+
+    function renderFavorites() {
+        DOM.favoritesList.innerHTML = '';
+        state.favorites.forEach((prompt, index) => {
+            const item = document.createElement('div');
+            item.className = 'favorite-item';
+            item.textContent = prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '');
+            item.onclick = () => {
+                DOM.promptTextarea.value = prompt;
+                updatePrompt();
+                showMessage('Prompt dimuat dari favorit.');
+            };
+            DOM.favoritesList.appendChild(item);
+        });
+    }
+
+    function copyToClipboard(targetId) {
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            const textToCopy = targetElement.textContent;
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => showMessage('Teks berhasil disalin!'))
+                .catch(() => showMessage('Gagal menyalin teks.'));
+        }
+    }
+    
+    function resetForm() {
+        state = {
+            subject: '',
+            adjectives: [],
+            medium: '',
+            style: '',
+            lighting: '',
+            palette: '',
+            paletteFree: '',
+            composition: '',
+            camera: '',
+            environment: '',
+            mood: [],
+            detail: '',
+            negative: 'blurry, low quality, watermark, text, extra limbs, deformed, jpeg artifacts',
+            mj: { ar: '1:1', stylize: 500, chaos: 0, styleRaw: false },
+            theme: state.theme,
+            history: state.history,
+            favorites: state.favorites,
+        };
+        renderUI();
+        generatePrompts();
+        showMessage('Formulir berhasil direset.');
+    }
+    
+    function toggleTheme() {
+        state.theme = state.theme === 'light' ? 'dark' : 'light';
+        document.body.className = state.theme === 'dark' ? 'dark-theme' : '';
+        DOM.themeToggle.querySelector('span').innerHTML = state.theme === 'dark' ? '&#9728;' : '&#9790;';
+        saveState();
+    }
+    
+    function exportState() {
+        const dataStr = JSON.stringify(state, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = 'prompt_generator_state.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    function importState(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedState = JSON.parse(e.target.result);
+                Object.assign(state, importedState);
+                renderUI();
+                generatePrompts();
+                showMessage('State berhasil diimpor!');
+            } catch (error) {
+                showMessage('Gagal mengimpor file. Pastikan itu adalah JSON yang valid.');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    async function generatePromptFromImage() {
+        const file = DOM.imageUpload.files[0];
+        if (!file) {
+            DOM.imagePromptStatus.textContent = "Silakan unggah gambar terlebih dahulu.";
+            return;
+        }
+        
+        DOM.imagePromptStatus.textContent = "Menganalisis gambar, mohon tunggu...";
+        DOM.generateImagePromptBtn.disabled = true;
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const base64Data = reader.result.split(',')[1];
+            
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: "Generate a highly detailed, descriptive prompt for an AI image generator based on this image. Focus on the subject, style, lighting, composition, and mood, suitable for models like Midjourney or Stable Diffusion." },
+                        { inlineData: { mimeType: file.type, data: base64Data } }
+                    ]
+                }],
+            };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const generatedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (generatedText) {
+                    DOM.promptTextarea.value = generatedText;
+                    DOM.promptEnTextarea.value = await translatePromptToEnglish(generatedText);
+                    DOM.imagePromptStatus.textContent = "Prompt berhasil dibuat! Silakan sesuaikan di bawah.";
+                    generatePrompts(generatedText);
+                } else {
+                    DOM.imagePromptStatus.textContent = "Gagal membuat prompt. Silakan coba lagi.";
+                }
+            } catch (error) {
+                console.error('API Error:', error);
+                DOM.imagePromptStatus.textContent = "Terjadi kesalahan. Periksa konsol.";
+            } finally {
+                DOM.generateImagePromptBtn.disabled = false;
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    async function refinePrompt() {
+        const currentPrompt = DOM.promptTextarea.value.trim();
+        if (!currentPrompt) {
+            showMessage("Silakan isi prompt terlebih dahulu.");
+            return;
+        }
+
+        DOM.refinePromptBtn.disabled = true;
+        DOM.refinePromptBtn.textContent = "Memproses...";
+        
+        const payload = {
+            contents: [{
+                parts: [{ text: `Tingkatkan prompt gambar berikut agar lebih rinci, kreatif, dan cocok untuk generator gambar AI: "${currentPrompt}"` }]
+            }],
+            systemInstruction: {
+                parts: [{ text: "Anda adalah pakar prompt generator. Tingkatkan prompt dengan menambahkan detail artistik, pencahayaan, dan komposisi. Berikan jawaban dalam bahasa Indonesia." }]
+            }
+        };
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            const refinedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (refinedText) {
+                DOM.promptTextarea.value = refinedText;
+                generatePrompts(refinedText);
+                DOM.promptEnTextarea.value = await translatePromptToEnglish(refinedText);
+                showMessage("Prompt berhasil ditingkatkan!");
+            } else {
+                showMessage("Gagal meningkatkan prompt. Silakan coba lagi.");
+            }
+        } catch (error) {
+            console.error('API Error:', error);
+            showMessage("Terjadi kesalahan. Periksa konsol.");
+        } finally {
+            DOM.refinePromptBtn.disabled = false;
+            DOM.refinePromptBtn.textContent = "✨ Tingkatkan Prompt ✨";
+        }
+    }
+
+    async function generateImage() {
+        const prompt = DOM.promptEnTextarea.value.trim();
+        if (!prompt) {
+            showMessage("Tidak ada prompt bahasa Inggris untuk menghasilkan gambar.");
+            return;
+        }
+
+        DOM.generateImageBtn.disabled = true;
+        DOM.imageGenerationStatus.textContent = "Menghasilkan gambar, mohon tunggu...";
+        DOM.generatedImagePreview.style.display = 'none';
+        
+        const payload = {
+            instances: [{ prompt: prompt }],
+            parameters: { "sampleCount": 1 }
+        };
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
+            
+            if (base64Data) {
+                DOM.generatedImagePreview.src = `data:image/png;base64,${base64Data}`;
+                DOM.generatedImagePreview.style.display = 'block';
+                DOM.imageGenerationStatus.textContent = "Gambar berhasil dihasilkan!";
+            } else {
+                DOM.imageGenerationStatus.textContent = "Gagal menghasilkan gambar. Silakan coba lagi.";
+            }
+        } catch (error) {
+            console.error('API Error:', error);
+            DOM.imageGenerationStatus.textContent = "Terjadi kesalahan. Periksa konsol.";
+        } finally {
+            DOM.generateImageBtn.disabled = false;
+            DOM.generateImageBtn.textContent = "✨ Hasilkan Gambar ✨";
+        }
+    }
+
+
+    // Event Listeners
+    DOM.subjectInput.addEventListener('input', updatePrompt);
+    DOM.adjectivesInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const value = DOM.adjectivesInput.value.trim();
+            if (value && !state.adjectives.includes(value)) {
+                state.adjectives.push(value);
+                DOM.adjectivesInput.value = '';
+                renderUI();
+                updatePrompt();
+            }
+        }
+    });
+    DOM.mediumSelect.addEventListener('change', updatePrompt);
+    DOM.styleSelect.addEventListener('change', updatePrompt);
+    DOM.lightingSelect.addEventListener('change', updatePrompt);
+    DOM.paletteSelect.addEventListener('change', updatePrompt);
+    DOM.paletteFreeInput.addEventListener('input', updatePrompt);
+    DOM.compositionSelect.addEventListener('change', updatePrompt);
+    DOM.cameraSelect.addEventListener('change', updatePrompt);
+    DOM.environmentInput.addEventListener('input', updatePrompt);
+    DOM.detailSelect.addEventListener('change', updatePrompt);
+    DOM.negativeTextarea.addEventListener('input', updatePrompt);
+
+    DOM.mjArSelect.addEventListener('change', updatePrompt);
+    DOM.mjStylizeInput.addEventListener('input', updatePrompt);
+    DOM.mjChaosInput.addEventListener('input', updatePrompt);
+    DOM.mjStyleRawCheckbox.addEventListener('change', updatePrompt);
+    
+    DOM.moodOptions.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (chip) {
+            const value = chip.dataset.value;
+            const index = state.mood.indexOf(value);
+            if (index > -1) {
+                state.mood.splice(index, 1);
+            } else {
+                state.mood.push(value);
+            }
+            renderUI();
+            updatePrompt();
+        }
+    });
+    
+    // Listen for manual changes to the main prompt textarea
+    DOM.promptTextarea.addEventListener('input', () => {
+        generatePrompts(DOM.promptTextarea.value);
+    });
+
+    DOM.resetBtn.addEventListener('click', resetForm);
+    DOM.exportBtn.addEventListener('click', exportState);
+    DOM.importFile.addEventListener('change', importState);
+    DOM.themeToggle.addEventListener('click', toggleTheme);
+    DOM.copyButtons.forEach(btn => {
+        btn.addEventListener('click', () => copyToClipboard(btn.dataset.target));
+    });
+
+    DOM.generateImagePromptBtn.addEventListener('click', generatePromptFromImage);
+    DOM.addToFavsBtn.addEventListener('click', addToFavorites);
+    DOM.refinePromptBtn.addEventListener('click', refinePrompt);
+    DOM.generateImageBtn.addEventListener('click', generateImage);
+
+    // Initial load
+    window.onload = () => {
+        loadState();
+    };
+
+</script>
+
+</body>
+</html>
